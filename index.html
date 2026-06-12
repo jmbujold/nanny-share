@@ -65,7 +65,7 @@ React.useEffect(() => {
     const { data } = await supabase.auth.getSession();
 
     setUser(data?.session?.user ?? null);
-
+    console.log("SESSION USER:", data?.session?.user);
     loadPosts();
   }
 
