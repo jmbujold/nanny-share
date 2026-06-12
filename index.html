@@ -109,6 +109,7 @@ async function logout() {
 ======================= */
 
 async function init() {
+ console.log("USER CHECK:", await supabase.auth.getUser());
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
