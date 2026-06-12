@@ -81,14 +81,25 @@ async function login() {
 React.useEffect(() => {
 
   async function init() {
-
-    // 🔥 THIS is the key fix
-    const { data: { session } } = await supabase.auth.getSession();
-
-    setUser(session?.user ?? null);
-
+    const { data } = await supabase.auth.getSession();
+    setUser(data?.session?.user ?? null);
     loadPosts();
   }
+
+  init();
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      setUser(session?.user ?? null);
+      loadPosts();
+    }
+  );
+
+  return () => {
+    listener.subscription.unsubscribe();
+  };
+
+}, []);
 
   init();
 
