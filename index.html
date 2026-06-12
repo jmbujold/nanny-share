@@ -60,50 +60,26 @@ function App() {
   /* =======================
      INIT AUTH (FIXED)
   ======================= */
-
-  React.useEffect(() => {
-    init();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user || null);
-      }
-    );
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  async function init() {
+React.useEffect(() => {
+  async function loadSession() {
     const { data } = await supabase.auth.getSession();
-    setUser(data?.session?.user || null);
+
+    setUser(data?.session?.user ?? null);
+
     loadPosts();
   }
 
-  /* =======================
-     AUTH CHECK (IMPORTANT)
-  ======================= */
+  loadSession();
 
-  async function isAllowed(email) {
-    const { data } = await supabase
-      .from("allowed_users")
-      .select("*")
-      .eq("email", email)
-      .single();
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      setUser(session?.user ?? null);
+      loadPosts();
+    }
+  );
 
-    return !!data;
-  }
-
-  async function login() {
-    await supabase.auth.signInWithOAuth({
-      provider: "google"
-    });
-  }
-
-  async function logout() {
-    await supabase.auth.signOut();
-    setUser(null);
-  }
-
+  return () => listener.subscription.unsubscribe();
+}, []);
   /* =======================
      POSTS
   ======================= */
