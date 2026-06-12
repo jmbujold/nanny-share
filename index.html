@@ -2,13 +2,14 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Nanny MVP</title>
+  <title>Nanny Share</title>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body style="font-family: system-ui; max-width:600px; margin:auto; padding:20px;">
 
-<h2>Nanny Share MVP</h2>
+<h2>Nanny Share</h2>
 
 <div id="auth"></div>
 <hr/>
@@ -26,12 +27,13 @@
 </div>
 
 <script>
+
 const supabase = window.supabase.createClient(
   "https://mzgrllluxkjppapgnmla.supabase.co",
   "YOUR_ANON_KEY"
 );
 
-/* ---------------- AUTH ---------------- */
+/* ================= AUTH ================= */
 
 async function getUser() {
   const { data } = await supabase.auth.getUser();
@@ -39,33 +41,47 @@ async function getUser() {
 }
 
 async function login() {
-  await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: window.location.origin
-    }
+  const email = prompt("Email:");
+  const password = prompt("Password:");
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password
   });
+
+  if (error) alert(error.message);
+  init();
 }
 
-async function logout() {
-  await supabase.auth.signOut();
-  location.reload();
+async function signup() {
+  const email = prompt("Email:");
+  const password = prompt("Password:");
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password
+  });
+
+  if (error) alert(error.message);
+  alert("Check your email if confirmation is required.");
 }
 
-/* ---------------- INIT ---------------- */
+/* ================= INIT ================= */
 
 async function init() {
+
   const user = await getUser();
 
   if (!user) {
-    document.getElementById("auth").innerHTML =
-      `<button onclick="login()">Login with Google</button>`;
+    document.getElementById("auth").innerHTML = `
+      <button onclick="login()">Login</button>
+      <button onclick="signup()">Sign Up</button>
+    `;
     return;
   }
 
-  document.getElementById("auth").innerHTML = `
-    <button onclick="logout()">Logout</button>
-  `;
+  document.getElementById("auth").innerHTML =
+    `<button onclick="logout()">Logout</button>`;
 
   document.getElementById("app").style.display = "block";
   document.getElementById("user").innerText = user.email;
@@ -73,11 +89,15 @@ async function init() {
   loadPosts();
 }
 
-/* ---------------- POSTS ---------------- */
+async function logout() {
+  await supabase.auth.signOut();
+  location.reload();
+}
+
+/* ================= POSTS ================= */
 
 async function createPost() {
   const text = document.getElementById("text").value;
-
   const user = await getUser();
 
   await supabase.from("posts").insert({
@@ -100,8 +120,8 @@ async function loadPosts() {
 
   (data || []).forEach(p => {
     const div = document.createElement("div");
-    div.style.padding = "10px";
     div.style.border = "1px solid #ddd";
+    div.style.padding = "10px";
     div.style.marginBottom = "10px";
 
     div.innerHTML = `
@@ -112,8 +132,6 @@ async function loadPosts() {
     feed.appendChild(div);
   });
 }
-
-/* ---------------- START ---------------- */
 
 init();
 
