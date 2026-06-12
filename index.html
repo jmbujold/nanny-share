@@ -109,7 +109,7 @@ async function logout() {
 ======================= */
 
 async function init() {
-  const user = await getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
     document.getElementById("auth").innerHTML = `
