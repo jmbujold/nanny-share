@@ -45,14 +45,13 @@
 <script>
 
 /* =======================
-   SUPABASE
+   SUPABASE (FIXED)
 ======================= */
-const { createClient } = supabase;
-const supabaseClient = createClient(
+
+const supabase = window.supabase.createClient(
   "https://mzgrllluxkjppapgnmla.supabase.co",
-  "sb_secret_BEewzPf7v7U-RXNS8sGMlw_maqwkIqv"
+  "sb_publishable_OSl86zWHkSnpZ7TL_bn48w_MQ1y0Cr3" // 🔥 replace this with anon public key
 );
-  
 
 /* =======================
    BABIES
@@ -130,11 +129,10 @@ async function init() {
 }
 
 /* =======================
-   BABY TOGGLE UI
+   BABY TOGGLE
 ======================= */
 
 function toggleBaby(id) {
-
   if (selectedBabies.includes(id)) {
     selectedBabies = selectedBabies.filter(b => b !== id);
   } else {
