@@ -21,18 +21,35 @@ const supabase = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
+    const BABIES = [
+  { id: "baby_a", name: "Baby A" },
+  { id: "baby_b", name: "Baby B" }
+];
+
+    
 
 function App() {
   const [user, setUser] = React.useState(null);
   const [posts, setPosts] = React.useState([]);
   const [text, setText] = React.useState("");
   const [file, setFile] = React.useState(null);
-
+  const [selectedBabies, setSelectedBabies] = React.useState([]);
+  
   React.useEffect(() => {
     checkUser();
     loadPosts();
   }, []);
 
+
+  function toggleBaby(id) {
+  setSelectedBabies(prev =>
+    prev.includes(id)
+      ? prev.filter(b => b !== id)
+      : [...prev, id]
+  );
+}
+
+  
   async function checkUser() {
     const { data } = await supabase.auth.getUser();
     setUser(data.user);
@@ -73,21 +90,12 @@ function App() {
   }
 
   async function createPost() {
-    let imageUrl = null;
-
-    if (file) {
-      imageUrl = await uploadFile(file);
-    }
-
     await supabase.from("posts").insert({
-      user_email: user.email,
-      content: text,
-      image_url: imageUrl
-    });
-
-    setText("");
-    setFile(null);
-    loadPosts();
+    user_email: user.email,
+    content: text,
+    image_url: imageUrl,
+    babies: selectedBabies
+});
   }
 
   if (!user) {
@@ -121,12 +129,42 @@ function App() {
       />
 
       <br /><br />
-
+<div style={{ marginBottom: 10 }}>
+  <b>Tag Babies:</b>
+  <div>
+    {BABIES.map(baby => (
+      <button
+        key={baby.id}
+        onClick={() => toggleBaby(baby.id)}
+        style={{
+          marginRight: 8,
+          padding: 8,
+          borderRadius: 8,
+          border: "1px solid #ccc",
+          background: selectedBabies.includes(baby.id)
+            ? "#4ade80"
+            : "#f3f4f6"
+        }}
+      >
+        {baby.name}
+      </button>
+    ))}
+  </div>
+</div>
+      
       <button onClick={createPost}>Post</button>
 
       <hr />
 
       <h3>Feed</h3>
+
+      <div style={{ fontSize: 12, color: "gray" }}>
+  {p.babies?.map(b => {
+    const baby = BABIES.find(x => x.id === b);
+    return baby?.name;
+  }).join(", ")}
+</div>
+      
 
       {posts.map(p => (
         <div key={p.id} style={{ marginBottom: 20 }}>
