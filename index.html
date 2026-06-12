@@ -60,12 +60,14 @@ function App() {
   /* =========================
      LOGIN FUNCTION (FIXED)
   ========================= */
-
-  async function login() {
-    await supabase.auth.signInWithOAuth({
-      provider: "google"
-    });
-  }
+async function login() {
+  await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin
+    }
+  });
+}
 
   async function logout() {
     await supabase.auth.signOut();
@@ -76,26 +78,21 @@ function App() {
      SESSION RESTORE (CRITICAL FIX)
   ========================= */
 
-  React.useEffect(() => {
+React.useEffect(() => {
 
-    async function loadSession() {
-      const { data } = await supabase.auth.getSession();
-      setUser(data?.session?.user ?? null);
-      loadPosts();
-    }
+  async function init() {
 
-    loadSession();
+    // 🔥 THIS is the key fix
+    const { data: { session } } = await supabase.auth.getSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-        loadPosts();
-      }
-    );
+    setUser(session?.user ?? null);
 
-    return () => listener.subscription.unsubscribe();
+    loadPosts();
+  }
 
-  }, []);
+  init();
+
+  const { data: listener } = supabase
 
   /* =========================
      LOAD POSTS
