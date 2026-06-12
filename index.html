@@ -3,10 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <title>Nanny Share</title>
+
   <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body { font-family: system-ui; margin: 0; background:#fafafa; }
+    .container { max-width: 520px; margin:auto; padding:16px; }
+    .card { background:white; padding:12px; border-radius:12px; margin-bottom:12px; }
+    button { padding:8px 12px; border-radius:8px; border:1px solid #ddd; margin:4px; }
+    textarea { width:100%; height:80px; }
+    img { max-width:100%; border-radius:10px; margin-top:8px; }
+  </style>
 </head>
 
 <body>
@@ -14,62 +24,73 @@
 
 <script type="text/babel">
 
+/* =======================
+   CONFIG
+======================= */
 const SUPABASE_URL = "https://mzgrllluxkjppapgnmla.supabase.co";
 const SUPABASE_ANON_KEY = "sb_secret_wAgTS1ILVoGJ2s1_OTRxAQ_BGf0RTjr";
+
 
 const supabase = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
-    const BABIES = [
+
+/* =======================
+   CONSTANT BABIES
+======================= */
+
+const BABIES = [
   { id: "baby_a", name: "Baby A" },
   { id: "baby_b", name: "Baby B" }
 ];
 
-    
+/* =======================
+   APP
+======================= */
 
 function App() {
 
-React.useEffect(() => {
-  async function init() {
-    const { data: sessionData } = await supabase.auth.getSession();
-
-    console.log("SESSION:", sessionData);
-
-    setUser(sessionData?.session?.user || null);
-  }
-
-  init();
-
-  // listen for login/logout changes
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-
-      
   const [user, setUser] = React.useState(null);
   const [posts, setPosts] = React.useState([]);
   const [text, setText] = React.useState("");
   const [file, setFile] = React.useState(null);
   const [selectedBabies, setSelectedBabies] = React.useState([]);
-  
+
+  /* =======================
+     INIT AUTH (FIXED)
+  ======================= */
+
   React.useEffect(() => {
-    checkUser();
-    loadPosts();
+    init();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null);
+      }
+    );
+
+    return () => listener.subscription.unsubscribe();
   }, []);
 
+  async function init() {
+    const { data } = await supabase.auth.getSession();
+    setUser(data?.session?.user || null);
+    loadPosts();
+  }
 
-  function toggleBaby(id) {
-  setSelectedBabies(prev =>
-    prev.includes(id)
-      ? prev.filter(b => b !== id)
-      : [...prev, id]
-  );
-}
+  /* =======================
+     AUTH CHECK (IMPORTANT)
+  ======================= */
 
-  
-  async function checkUser() {
-    const { data } = await supabase.auth.getUser();
-    setUser(data.user);
+  async function isAllowed(email) {
+    const { data } = await supabase
+      .from("allowed_users")
+      .select("*")
+      .eq("email", email)
+      .single();
+
+    return !!data;
   }
 
   async function login() {
@@ -83,6 +104,10 @@ React.useEffect(() => {
     setUser(null);
   }
 
+  /* =======================
+     POSTS
+  ======================= */
+
   async function loadPosts() {
     const { data } = await supabase
       .from("posts")
@@ -92,8 +117,12 @@ React.useEffect(() => {
     setPosts(data || []);
   }
 
+  /* =======================
+     FILE UPLOAD
+  ======================= */
+
   async function uploadFile(file) {
-    const fileName = Date.now() + file.name;
+    const fileName = Date.now() + "-" + file.name;
 
     await supabase.storage
       .from("photos")
@@ -106,92 +135,134 @@ React.useEffect(() => {
     return data.publicUrl;
   }
 
+  /* =======================
+     CREATE POST
+  ======================= */
+
   async function createPost() {
+
+    let imageUrl = null;
+
+    if (file) {
+      imageUrl = await uploadFile(file);
+    }
+
     await supabase.from("posts").insert({
-    user_email: user.email,
-    content: text,
-    image_url: imageUrl,
-    babies: selectedBabies
-});
+      user_email: user.email,
+      content: text,
+      image_url: imageUrl,
+      babies: selectedBabies
+    });
+
+    setText("");
+    setFile(null);
+    setSelectedBabies([]);
+
+    loadPosts();
   }
+
+  /* =======================
+     BABY TOGGLE
+  ======================= */
+
+  function toggleBaby(id) {
+    setSelectedBabies(prev =>
+      prev.includes(id)
+        ? prev.filter(b => b !== id)
+        : [...prev, id]
+    );
+  }
+
+  /* =======================
+     LOADING STATE
+  ======================= */
 
   if (!user) {
     return (
-      <div style={{ padding: 40 }}>
-        <h1>Nanny Share</h1>
+      <div className="container">
+        <h2>Nanny Share</h2>
         <button onClick={login}>Login with Google</button>
       </div>
     );
   }
 
+  /* =======================
+     APP UI
+  ======================= */
+
   return (
-    <div style={{ padding: 40 }}>
-      <h2>Welcome {user.email}</h2>
+    <div className="container">
+
+      <h3>Welcome {user.email}</h3>
+
       <button onClick={logout}>Logout</button>
 
       <hr />
 
-      <h3>New Update</h3>
-      <textarea
-        value={text}
-        onChange={e => setText(e.target.value)}
-        placeholder="What happened today?"
-      />
+      {/* CREATE POST */}
+      <div className="card">
 
-      <br /><br />
+        <h3>New Update</h3>
 
-      <input
-        type="file"
-        onChange={e => setFile(e.target.files[0])}
-      />
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="What happened today?"
+        />
 
-      <br /><br />
-<div style={{ marginBottom: 10 }}>
-  <b>Tag Babies:</b>
-  <div>
-    {BABIES.map(baby => (
-      <button
-        key={baby.id}
-        onClick={() => toggleBaby(baby.id)}
-        style={{
-          marginRight: 8,
-          padding: 8,
-          borderRadius: 8,
-          border: "1px solid #ccc",
-          background: selectedBabies.includes(baby.id)
-            ? "#4ade80"
-            : "#f3f4f6"
-        }}
-      >
-        {baby.name}
-      </button>
-    ))}
-  </div>
-</div>
-      
-      <button onClick={createPost}>Post</button>
+        <div>
+          <b>Tag Babies:</b>
+          <div>
+            {BABIES.map(b => (
+              <button
+                key={b.id}
+                onClick={() => toggleBaby(b.id)}
+                style={{
+                  background: selectedBabies.includes(b.id)
+                    ? "#4ade80"
+                    : "white"
+                }}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      <hr />
+        <input
+          type="file"
+          onChange={e => setFile(e.target.files[0])}
+        />
 
+        <button onClick={createPost}>
+          Post Update
+        </button>
+
+      </div>
+
+      {/* FEED */}
       <h3>Feed</h3>
 
-      <div style={{ fontSize: 12, color: "gray" }}>
-  {p.babies?.map(b => {
-    const baby = BABIES.find(x => x.id === b);
-    return baby?.name;
-  }).join(", ")}
-</div>
-      
-
       {posts.map(p => (
-        <div key={p.id} style={{ marginBottom: 20 }}>
+        <div key={p.id} className="card">
+
           <b>{p.user_email}</b>
+
+          <div style={{ fontSize: 12, color: "gray" }}>
+            {p.babies?.map(b =>
+              BABIES.find(x => x.id === b)?.name
+            ).join(", ")}
+          </div>
+
           <p>{p.content}</p>
+
           {p.image_url && (
-            <img src={p.image_url} width="300" />
+            <img src={p.image_url} />
           )}
+
         </div>
       ))}
+
     </div>
   );
 }
@@ -201,3 +272,5 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
 </body>
 </html>
+
+
