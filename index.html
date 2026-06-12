@@ -29,6 +29,9 @@ const supabase = window.supabase.createClient(
     
 
 function App() {
+
+  console.log("USER:", user);
+  
   const [user, setUser] = React.useState(null);
   const [posts, setPosts] = React.useState([]);
   const [text, setText] = React.useState("");
