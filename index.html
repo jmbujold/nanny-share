@@ -30,8 +30,22 @@ const supabase = window.supabase.createClient(
 
 function App() {
 
-  console.log("USER:", user);
-  
+React.useEffect(() => {
+  async function init() {
+    const { data: sessionData } = await supabase.auth.getSession();
+
+    console.log("SESSION:", sessionData);
+
+    setUser(sessionData?.session?.user || null);
+  }
+
+  init();
+
+  // listen for login/logout changes
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+
+      
   const [user, setUser] = React.useState(null);
   const [posts, setPosts] = React.useState([]);
   const [text, setText] = React.useState("");
