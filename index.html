@@ -47,11 +47,12 @@
 /* =======================
    SUPABASE
 ======================= */
-
-const supabase = window.supabase.createClient(
+const { createClient } = supabase;
+const supabaseClient = createClient(
   "https://mzgrllluxkjppapgnmla.supabase.co",
-  "YOUR_ANON_KEY"
+  "sb_secret_BEewzPf7v7U-RXNS8sGMlw_maqwkIqv"
 );
+  
 
 /* =======================
    BABIES
