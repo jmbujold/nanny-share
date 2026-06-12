@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Nanny Share</title>
+  <title>Nanny Share MVP</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -16,17 +16,16 @@
 
 <body>
 
-<h2>Nanny Share</h2>
+<h2>Nanny Share MVP</h2>
 
 <div id="auth"></div>
-
 <hr/>
 
 <div id="app" style="display:none;">
+
   <p id="user"></p>
 
   <div class="card">
-
     <textarea id="text" placeholder="Write update..."></textarea>
 
     <div>
@@ -40,17 +39,18 @@
 
   <h3>Feed</h3>
   <div id="feed"></div>
+
 </div>
 
 <script>
 
 /* =======================
-   SUPABASE (FIXED)
+   SUPABASE (ONLY CLIENT)
 ======================= */
 
 const supabase = window.supabase.createClient(
   "https://mzgrllluxkjppapgnmla.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16Z3JsbGx1eGtqcHBhcGdubWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODEyMzQsImV4cCI6MjA5Njg1NzIzNH0.Jef9B7wu81gJgEwY8vnyxM8ZjaQaBcPQDR6PxZ1E2sA" // 🔥 replace this with anon public key
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16Z3JsbGx1eGtqcHBhcGdubWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODEyMzQsImV4cCI6MjA5Njg1NzIzNH0.Jef9B7wu81gJgEwY8vnyxM8ZjaQaBcPQDR6PxZ1E2sA"
 );
 
 /* =======================
@@ -82,7 +82,8 @@ async function login() {
     password
   });
 
-  if (error) alert(error.message);
+  if (error) return alert(error.message);
+
   init();
 }
 
@@ -95,21 +96,23 @@ async function signup() {
     password
   });
 
-  if (error) alert(error.message);
+  if (error) return alert(error.message);
+
   alert("Check email if confirmation is required.");
 }
 
+/* logout */
 async function logout() {
   await supabase.auth.signOut();
   location.reload();
 }
 
 /* =======================
-   INIT
+   INIT (ROBUST VERSION)
 ======================= */
 
 async function init() {
- console.log("USER CHECK:", await supabase.auth.getUser());
+
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -130,20 +133,17 @@ async function init() {
 }
 
 /* =======================
-   BABY TOGGLE
+   BABY UI
 ======================= */
 
 function toggleBaby(id) {
+
   if (selectedBabies.includes(id)) {
     selectedBabies = selectedBabies.filter(b => b !== id);
   } else {
     selectedBabies.push(id);
   }
 
-  updateBabyUI();
-}
-
-function updateBabyUI() {
   document.getElementById("baby_a_btn").style.background =
     selectedBabies.includes("baby_a") ? "#4ade80" : "white";
 
@@ -156,18 +156,23 @@ function updateBabyUI() {
 ======================= */
 
 async function createPost() {
-  const text = document.getElementById("text").value;
-  const user = await getUser();
 
-  await supabase.from("posts").insert({
+  const text = document.getElementById("text").value;
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { error } = await supabase.from("posts").insert({
     user_email: user.email,
     content: text,
     babies: selectedBabies
   });
 
+  if (error) return alert(error.message);
+
   document.getElementById("text").value = "";
   selectedBabies = [];
-  updateBabyUI();
+
+  document.getElementById("baby_a_btn").style.background = "white";
+  document.getElementById("baby_b_btn").style.background = "white";
 
   loadPosts();
 }
@@ -178,10 +183,15 @@ async function createPost() {
 
 async function loadPosts() {
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("posts")
     .select("*")
     .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
 
   const feed = document.getElementById("feed");
   feed.innerHTML = "";
