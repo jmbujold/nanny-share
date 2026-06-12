@@ -2,70 +2,42 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Nanny Share</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
+  <title>Nanny MVP</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
-
-  <style>
-    body { font-family: system-ui; margin:0; background:#f6f6f6; }
-    .container { max-width:520px; margin:auto; padding:16px; }
-    .card { background:white; padding:12px; border-radius:12px; margin-bottom:12px; }
-    button { margin:4px; padding:8px 10px; border-radius:8px; border:1px solid #ddd; }
-    textarea { width:100%; height:80px; }
-    img { max-width:100%; border-radius:10px; margin-top:8px; }
-  </style>
 </head>
 
-<body>
-<div id="root"></div>
+<body style="font-family: system-ui; max-width:600px; margin:auto; padding:20px;">
 
-<script type="text/babel">
+<h2>Nanny Share MVP</h2>
 
-/* =========================
-   SUPABASE CONFIG (YOUR KEYS)
-========================= */
+<div id="auth"></div>
+<hr/>
 
-const SUPABASE_URL = "https://mzgrllluxkjppapgnmla.supabase.co";
-const SUPABASE_ANON_KEY = "sb_secret_wAgTS1ILVoGJ2s1_OTRxAQ_BGf0RTjr";
+<div id="app" style="display:none;">
+  <p id="user"></p>
 
+  <textarea id="text" placeholder="Write update..." style="width:100%; height:80px;"></textarea>
+  <br/>
+  <button onclick="createPost()">Post</button>
+
+  <hr/>
+
+  <div id="feed"></div>
+</div>
+
+<script>
 const supabase = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
-  {
-    auth: {
-      persistSession: true,
-      detectSessionInUrl: true
-    }
-  }
+  "https://mzgrllluxkjppapgnmla.supabase.co",
+  "YOUR_ANON_KEY"
 );
 
-/* =========================
-   BABIES (CONSTANTS)
-========================= */
+/* ---------------- AUTH ---------------- */
 
-const BABIES = [
-  { id: "baby_a", name: "Baby A" },
-  { id: "baby_b", name: "Baby B" }
-];
+async function getUser() {
+  const { data } = await supabase.auth.getUser();
+  return data.user;
+}
 
-/* =========================
-   APP
-========================= */
-
-function App() {
-
-  const [user, setUser] = React.useState(null);
-  const [posts, setPosts] = React.useState([]);
-  const [text, setText] = React.useState("");
-  const [file, setFile] = React.useState(null);
-  const [selectedBabies, setSelectedBabies] = React.useState([]);
-
-  /* =========================
-     LOGIN FUNCTION (FIXED)
-  ========================= */
 async function login() {
   await supabase.auth.signInWithOAuth({
     provider: "google",
@@ -75,199 +47,77 @@ async function login() {
   });
 }
 
-  async function logout() {
-    await supabase.auth.signOut();
-    setUser(null);
-  }
-
-  /* =========================
-     SESSION RESTORE (CRITICAL FIX)
-  ========================= */
-
-React.useEffect(() => {
-
-  async function init() {
-    const { data } = await supabase.auth.getSession();
-    setUser(data?.session?.user ?? null);
-    loadPosts();
-  }
-
-  init();
-
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      setUser(session?.user ?? null);
-      loadPosts();
-    }
-  );
-
-  return () => {
-    listener.subscription.unsubscribe();
-  };
-
-}, []);
-
-  /* =========================
-     LOAD POSTS
-  ========================= */
-
-  async function loadPosts() {
-    const { data } = await supabase
-      .from("posts")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    setPosts(data || []);
-  }
-
-  /* =========================
-     UPLOAD IMAGE
-  ========================= */
-
-  async function uploadFile(file) {
-    const fileName = Date.now() + "-" + file.name;
-
-    await supabase.storage
-      .from("photos")
-      .upload(fileName, file);
-
-    const { data } = supabase.storage
-      .from("photos")
-      .getPublicUrl(fileName);
-
-    return data.publicUrl;
-  }
-
-  /* =========================
-     CREATE POST
-  ========================= */
-
-  async function createPost() {
-
-    let imageUrl = null;
-
-    if (file) {
-      imageUrl = await uploadFile(file);
-    }
-
-    await supabase.from("posts").insert({
-      user_email: user.email,
-      content: text,
-      image_url: imageUrl,
-      babies: selectedBabies
-    });
-
-    setText("");
-    setFile(null);
-    setSelectedBabies([]);
-
-    loadPosts();
-  }
-
-  /* =========================
-     BABY TOGGLE
-  ========================= */
-
-  function toggleBaby(id) {
-    setSelectedBabies(prev =>
-      prev.includes(id)
-        ? prev.filter(b => b !== id)
-        : [...prev, id]
-    );
-  }
-
-  /* =========================
-     UI (LOGIN STATE FIXED)
-  ========================= */
-
-  if (!user) {
-    return (
-      <div className="container">
-        <h2>Nanny Share</h2>
-        <button onClick={login}>Login with Google</button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container">
-
-      <h3>Welcome {user.email}</h3>
-
-      <button onClick={logout}>Logout</button>
-
-      <hr />
-
-      {/* CREATE POST */}
-      <div className="card">
-
-        <h3>New Update</h3>
-
-        <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder="What happened today?"
-        />
-
-        <div>
-          <b>Tag Babies:</b><br/>
-          {BABIES.map(b => (
-            <button
-              key={b.id}
-              onClick={() => toggleBaby(b.id)}
-              style={{
-                background: selectedBabies.includes(b.id)
-                  ? "#4ade80"
-                  : "white"
-              }}
-            >
-              {b.name}
-            </button>
-          ))}
-        </div>
-
-        <input
-          type="file"
-          onChange={e => setFile(e.target.files[0])}
-        />
-
-        <br/>
-
-        <button onClick={createPost}>
-          Post
-        </button>
-
-      </div>
-
-      {/* FEED */}
-      <h3>Feed</h3>
-
-      {posts.map(p => (
-        <div key={p.id} className="card">
-
-          <b>{p.user_email}</b>
-
-          <div style={{ fontSize: 12, color: "gray" }}>
-            {p.babies?.map(b =>
-              BABIES.find(x => x.id === b)?.name
-            ).join(", ")}
-          </div>
-
-          <p>{p.content}</p>
-
-          {p.image_url && (
-            <img src={p.image_url} />
-          )}
-
-        </div>
-      ))}
-
-    </div>
-  );
+async function logout() {
+  await supabase.auth.signOut();
+  location.reload();
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+/* ---------------- INIT ---------------- */
+
+async function init() {
+  const user = await getUser();
+
+  if (!user) {
+    document.getElementById("auth").innerHTML =
+      `<button onclick="login()">Login with Google</button>`;
+    return;
+  }
+
+  document.getElementById("auth").innerHTML = `
+    <button onclick="logout()">Logout</button>
+  `;
+
+  document.getElementById("app").style.display = "block";
+  document.getElementById("user").innerText = user.email;
+
+  loadPosts();
+}
+
+/* ---------------- POSTS ---------------- */
+
+async function createPost() {
+  const text = document.getElementById("text").value;
+
+  const user = await getUser();
+
+  await supabase.from("posts").insert({
+    user_email: user.email,
+    content: text
+  });
+
+  document.getElementById("text").value = "";
+  loadPosts();
+}
+
+async function loadPosts() {
+  const { data } = await supabase
+    .from("posts")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const feed = document.getElementById("feed");
+  feed.innerHTML = "";
+
+  (data || []).forEach(p => {
+    const div = document.createElement("div");
+    div.style.padding = "10px";
+    div.style.border = "1px solid #ddd";
+    div.style.marginBottom = "10px";
+
+    div.innerHTML = `
+      <b>${p.user_email}</b><br/>
+      ${p.content}
+    `;
+
+    feed.appendChild(div);
+  });
+}
+
+/* ---------------- START ---------------- */
+
+init();
 
 </script>
+
 </body>
 </html>
