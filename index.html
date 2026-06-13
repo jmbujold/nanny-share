@@ -1,225 +1,253 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Nanny Share MVP</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<title>GoBuj Nanny Share</title>
 
-  <style>
-    body { font-family: system-ui; max-width:600px; margin:auto; padding:20px; background:#f6f6f6; }
-    .card { background:white; padding:12px; border-radius:12px; margin-bottom:12px; }
-    button { margin:4px; padding:8px 10px; border-radius:8px; border:1px solid #ddd; }
-    textarea { width:100%; height:80px; }
-  </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body{
+  font-family:Arial,sans-serif;
+  max-width:700px;
+  margin:auto;
+  padding:20px;
+  background:#f5f5f5;
+}
+
+.card{
+  background:white;
+  border-radius:12px;
+  padding:15px;
+  margin-bottom:15px;
+}
+
+input,select,textarea{
+  width:100%;
+  padding:10px;
+  margin:6px 0;
+  box-sizing:border-box;
+}
+
+button{
+  width:100%;
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.feed-item{
+  border-bottom:1px solid #eee;
+  padding:12px 0;
+}
+
+.feed-item img{
+  width:100%;
+  border-radius:8px;
+  margin-top:10px;
+}
+</style>
 </head>
 
 <body>
 
-<h2>Nanny Share MVP</h2>
+<h1>👶 GoBuj Nanny Share</h1>
 
-<div id="auth"></div>
-<hr/>
+<div class="card">
 
-<div id="app" style="display:none;">
+<h3>Add Update</h3>
 
-  <p id="user"></p>
+<select id="child">
+  <option>Abby</option>
+  <option>Other Baby</option>
+</select>
 
-  <div class="card">
-    <textarea id="text" placeholder="Write update..."></textarea>
+<select id="type">
+  <option>Bottle</option>
+  <option>Nap</option>
+  <option>Diaper</option>
+  <option>Photo</option>
+  <option>Note</option>
+</select>
 
-    <div>
-      <b>Tag Babies:</b><br/>
-      <button onclick="toggleBaby('baby_a')" id="baby_a_btn">Baby A</button>
-      <button onclick="toggleBaby('baby_b')" id="baby_b_btn">Baby B</button>
-    </div>
+<textarea
+  id="note"
+  placeholder="What happened?"></textarea>
 
-    <button onclick="createPost()">Post</button>
-  </div>
+<input
+  id="photo"
+  type="file"
+  accept="image/*">
 
-  <h3>Feed</h3>
-  <div id="feed"></div>
+<button onclick="saveUpdate()">
+Post Update
+</button>
+
+</div>
+
+<div class="card">
+
+<h3>Today's Updates</h3>
+
+<div id="feed"></div>
 
 </div>
 
 <script>
 
-/* =======================
-   SUPABASE (ONLY CLIENT)
-======================= */
+const SUPABASE_URL =
+"YOUR_SUPABASE_URL";
 
-const supabase = window.supabase.createClient(
-  "https://mzgrllluxkjppapgnmla.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16Z3JsbGx1eGtqcHBhcGdubWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODEyMzQsImV4cCI6MjA5Njg1NzIzNH0.Jef9B7wu81gJgEwY8vnyxM8ZjaQaBcPQDR6PxZ1E2sA"
+const SUPABASE_KEY =
+"YOUR_SUPABASE_ANON_KEY";
+
+const supabase =
+window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
 );
 
-/* =======================
-   BABIES
-======================= */
+async function saveUpdate(){
 
-const BABIES = [
-  { id: "baby_a", name: "Baby A" },
-  { id: "baby_b", name: "Baby B" }
-];
+  let imageUrl = null;
 
-let selectedBabies = [];
+  const file =
+    document.getElementById("photo").files[0];
 
-/* =======================
-   AUTH
-======================= */
+  if(file){
 
-async function getUser() {
-  const { data } = await supabase.auth.getUser();
-  return data.user;
-}
+    const fileName =
+      Date.now() + "-" + file.name;
 
-async function login() {
-  const email = prompt("Email:");
-  const password = prompt("Password:");
+    const upload =
+      await supabase.storage
+      .from("photos")
+      .upload(fileName,file);
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
+    if(upload.error){
+      alert(upload.error.message);
+      return;
+    }
 
-  if (error) return alert(error.message);
+    imageUrl =
+      supabase.storage
+      .from("photos")
+      .getPublicUrl(fileName)
+      .data.publicUrl;
+  }
 
-  init();
-}
+  const result =
+    await supabase
+    .from("updates")
+    .insert({
+      child_name:
+        document.getElementById("child").value,
 
-async function signup() {
-  const email = prompt("Email:");
-  const password = prompt("Password:");
+      update_type:
+        document.getElementById("type").value,
 
-  const { error } = await supabase.auth.signUp({
-    email,
-    password
-  });
+      note:
+        document.getElementById("note").value,
 
-  if (error) return alert(error.message);
+      image_url:imageUrl
+    });
 
-  alert("Check email if confirmation is required.");
-}
-
-/* logout */
-async function logout() {
-  await supabase.auth.signOut();
-  location.reload();
-}
-
-/* =======================
-   INIT (ROBUST VERSION)
-======================= */
-
-async function init() {
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    document.getElementById("auth").innerHTML = `
-      <button onclick="login()">Login</button>
-      <button onclick="signup()">Sign Up</button>
-    `;
+  if(result.error){
+    alert(result.error.message);
     return;
   }
 
-  document.getElementById("auth").innerHTML =
-    `<button onclick="logout()">Logout</button>`;
+  document.getElementById("note").value="";
+  document.getElementById("photo").value="";
 
-  document.getElementById("app").style.display = "block";
-  document.getElementById("user").innerText = user.email;
-
-  loadPosts();
+  loadFeed();
 }
 
-/* =======================
-   BABY UI
-======================= */
+async function loadFeed(){
 
-function toggleBaby(id) {
-
-  if (selectedBabies.includes(id)) {
-    selectedBabies = selectedBabies.filter(b => b !== id);
-  } else {
-    selectedBabies.push(id);
-  }
-
-  document.getElementById("baby_a_btn").style.background =
-    selectedBabies.includes("baby_a") ? "#4ade80" : "white";
-
-  document.getElementById("baby_b_btn").style.background =
-    selectedBabies.includes("baby_b") ? "#4ade80" : "white";
-}
-
-/* =======================
-   CREATE POST
-======================= */
-
-async function createPost() {
-
-  const text = document.getElementById("text").value;
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { error } = await supabase.from("posts").insert({
-    user_email: user.email,
-    content: text,
-    babies: selectedBabies
-  });
-
-  if (error) return alert(error.message);
-
-  document.getElementById("text").value = "";
-  selectedBabies = [];
-
-  document.getElementById("baby_a_btn").style.background = "white";
-  document.getElementById("baby_b_btn").style.background = "white";
-
-  loadPosts();
-}
-
-/* =======================
-   LOAD POSTS
-======================= */
-
-async function loadPosts() {
-
-  const { data, error } = await supabase
-    .from("posts")
+  const {data,error} =
+    await supabase
+    .from("updates")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at",
+      {ascending:false});
 
-  if (error) {
-    console.error(error);
+  if(error){
+    console.log(error);
     return;
   }
 
-  const feed = document.getElementById("feed");
-  feed.innerHTML = "";
+  document.getElementById("feed").innerHTML =
+    data.map(item => `
 
-  (data || []).forEach(p => {
+      <div class="feed-item">
 
-    const div = document.createElement("div");
-    div.className = "card";
+        <strong>
+          ${emoji(item.update_type)}
+          ${item.child_name}
+        </strong>
 
-    const babyNames = (p.babies || [])
-      .map(id => BABIES.find(b => b.id === id)?.name)
-      .join(", ");
+        <div>
+          ${item.note || ""}
+        </div>
 
-    div.innerHTML = `
-      <b>${p.user_email}</b><br/>
-      <small>${babyNames}</small>
-      <p>${p.content}</p>
-    `;
+        <small>
+          ${new Date(
+            item.created_at
+          ).toLocaleString()}
+        </small>
 
-    feed.appendChild(div);
-  });
+        ${
+          item.image_url
+          ?
+          `<img src="${item.image_url}">`
+          :
+          ""
+        }
+
+      </div>
+
+    `).join("");
 }
 
-/* =======================
-   START
-======================= */
+function emoji(type){
 
-init();
+  switch(type){
+
+    case "Bottle":
+      return "🍼";
+
+    case "Nap":
+      return "😴";
+
+    case "Diaper":
+      return "💩";
+
+    case "Photo":
+      return "📷";
+
+    default:
+      return "📝";
+  }
+}
+
+loadFeed();
+
+supabase
+.channel("updates")
+.on(
+  "postgres_changes",
+  {
+    event:"*",
+    schema:"public",
+    table:"updates"
+  },
+  () => loadFeed()
+)
+.subscribe();
 
 </script>
 
